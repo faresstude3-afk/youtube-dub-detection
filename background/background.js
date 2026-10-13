@@ -1,6 +1,6 @@
 /**
  * YouTube Arabic Dub Indicator - Background Coordinator
- * Uses robust JSON parsing, two-tier cache, and concurrency queue.
+ * Uses robust multi-source extraction, two-tier cache, and concurrency queue.
  */
 
 const browserAPI = typeof browser !== 'undefined' ? browser : chrome;
@@ -10,18 +10,18 @@ const memoryCache = new Map();
 
 // Configuration
 const CONFIG = {
-  CACHE_STORAGE_KEY: 'yt_dub_cache_v2', // v2 to invalidate previous failed cache
+  CACHE_STORAGE_KEY: 'yt_dub_cache_v6',
   CACHE_TTL_DAYS: 21,
   MAX_CACHE_ENTRIES: 5000,
-  CONCURRENT_LIMIT: 3,
-  REQUEST_DELAY_MS: 40,
+  CONCURRENT_LIMIT: 4,
+  REQUEST_DELAY_MS: 30,
   CACHE_SAVE_DEBOUNCE_MS: 2000
 };
 
 // Queue system
 const taskQueue = [];
 let activeWorkers = 0;
-const pendingPromises = new Map(); // videoId -> Array of { resolve, reject }
+const pendingPromises = new Map();
 let cacheSaveTimer = null;
 let stats = {
   totalScanned: 0,
@@ -34,8 +34,14 @@ let stats = {
 
 async function initializeCache() {
   try {
-    // Clear old v1 cache if exists to prevent stale false results
-    await browserAPI.storage.local.remove(['yt_dub_cache_v1']);
+    // Clear old legacy caches
+    await browserAPI.storage.local.remove([
+      'yt_dub_cache_v1',
+      'yt_dub_cache_v2',
+      'yt_dub_cache_v3',
+      'yt_dub_cache_v4',
+      'yt_dub_cache_v5'
+    ]);
 
     const data = await browserAPI.storage.local.get([CONFIG.CACHE_STORAGE_KEY, 'yt_dub_stats_v2']);
     if (data[CONFIG.CACHE_STORAGE_KEY]) {
@@ -46,7 +52,7 @@ async function initializeCache() {
       for (const [id, info] of Object.entries(stored)) {
         if (info && (now - (info.timestamp || 0)) < ttlMs) {
           memoryCache.set(id, info);
-          if (info.hasArabicDub) {
+          if (info.isDubbed || info.hasArabicDub) {
             stats.dubbedFound++;
           }
         }
@@ -94,8 +100,73 @@ function scheduleSaveCache() {
 }
 
 // ==========================================
-// 2. Video Track Extraction Engine (Robust Parser)
+// 2. Video Track Extraction Engine
 // ==========================================
+
+function isArabicTrack(t) {
+  const id = (t.id || '').toLowerCase().trim();
+  const name = (t.displayName || '').toLowerCase().trim();
+  return (
+    id === 'ar' ||
+    id.startsWith('ar.') ||
+    id.startsWith('ar-') ||
+    id.startsWith('ar_') ||
+    id.startsWith('ara.') ||
+    id.startsWith('ara-') ||
+    id.includes('.ar.') ||
+    id.endsWith('.ar') ||
+    name.includes('arabic') ||
+    name.includes('العربية') ||
+    name.includes('عربي') ||
+    name.includes('arabe') ||
+    name.includes('árabe') ||
+    name.includes('arabisch')
+  );
+}
+
+function isOriginalLanguageTrack(t) {
+  const name = (t.displayName || '').toLowerCase();
+  return (
+    name.includes('أصلي') ||
+    name.includes('اصلي') ||
+    name.includes('original')
+  );
+}
+
+function extractTracksFromText(text) {
+  const tracksMap = new Map();
+
+  const atRegex = /"audioTrack"\s*:\s*\{([^}]+)\}/g;
+  let m;
+  while ((m = atRegex.exec(text)) !== null) {
+    const raw = m[1];
+    const idM = raw.match(/"id"\s*:\s*"([^"]+)"/);
+    const nameM = raw.match(/"displayName"\s*:\s*"([^"]+)"/);
+    const defM = raw.match(/"audioIsDefault"\s*:\s*(true|false)/);
+    const autoM = raw.match(/"isAutoDubbed"\s*:\s*(true|false)/);
+
+    const id = idM ? idM[1].trim() : '';
+    const displayName = nameM ? nameM[1].trim() : '';
+    const isDefault = defM ? defM[1] === 'true' : false;
+    const isAutoDubbed = autoM ? autoM[1] === 'true' : false;
+
+    const key = (id || displayName).toLowerCase();
+    if (key && !tracksMap.has(key)) {
+      tracksMap.set(key, { id, displayName, isDefault, isAutoDubbed });
+    }
+  }
+
+  const atIdRegex = /"audioTrackId"\s*:\s*"([^"]+)"/g;
+  while ((m = atIdRegex.exec(text)) !== null) {
+    const id = m[1].trim();
+    const key = id.toLowerCase();
+    if (key && !tracksMap.has(key)) {
+      tracksMap.set(key, { id, displayName: '', isDefault: false, isAutoDubbed: false });
+    }
+  }
+
+  return [...tracksMap.values()];
+}
 
 async function extractVideoAudioTracks(videoId) {
   const watchUrl = `https://www.youtube.com/watch?v=${videoId}`;
@@ -106,145 +177,35 @@ async function extractVideoAudioTracks(videoId) {
       method: 'GET',
       headers: {
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': 'en-US,en;q=0.9,ar;q=0.8'
+        'Accept-Language': 'ar,en;q=0.9'
       },
       credentials: 'include'
     });
   } catch (err) {
     console.warn('[YT-Arabic-Dub] Fetch error for', videoId, ':', err);
-    return { hasArabicDub: false, tracksCount: 0, error: err.message };
+    return { hasArabicDub: false, isDubbed: false, tracksCount: 0, error: err.message };
   }
 
   if (!response.ok) {
-    return { hasArabicDub: false, tracksCount: 0 };
+    return { hasArabicDub: false, isDubbed: false, tracksCount: 0 };
   }
 
   const text = await response.text();
+  const tracks = extractTracksFromText(text);
 
-  // Find ytInitialPlayerResponse marker
-  const startMarker = 'ytInitialPlayerResponse = ';
-  let startIdx = text.indexOf(startMarker);
-  if (startIdx === -1) {
-    const altMarker = 'var ytInitialPlayerResponse = ';
-    startIdx = text.indexOf(altMarker);
-    if (startIdx !== -1) startIdx += altMarker.length;
-  } else {
-    startIdx += startMarker.length;
-  }
+  const arabicTracks = tracks.filter(isArabicTrack);
+  const hasArabic = arabicTracks.length > 0;
+  const isOriginallyArabic = arabicTracks.some(isOriginalLanguageTrack);
+  const hasAutoDubbed = arabicTracks.some(t => t.isAutoDubbed);
 
-  if (startIdx === -1) {
-    return { hasArabicDub: false, tracksCount: 0 };
-  }
+  const isDubbed = hasAutoDubbed || (tracks.length >= 2 && hasArabic && !isOriginallyArabic);
 
-  // Parse JSON by tracking balanced curly brackets
-  const after = text.substring(startIdx).trimStart();
-  let braceCount = 0;
-  let endIdx = -1;
-  let inString = false;
-  let escape = false;
-
-  for (let i = 0; i < after.length; i++) {
-    const c = after[i];
-    if (escape) {
-      escape = false;
-      continue;
-    }
-    if (c === '\\') {
-      escape = true;
-      continue;
-    }
-    if (c === '"') {
-      inString = !inString;
-      continue;
-    }
-    if (!inString) {
-      if (c === '{') braceCount++;
-      else if (c === '}') {
-        braceCount--;
-        if (braceCount === 0) {
-          endIdx = i;
-          break;
-        }
-      }
-    }
-  }
-
-  if (endIdx === -1) {
-    return { hasArabicDub: false, tracksCount: 0 };
-  }
-
-  let playerData = null;
-  try {
-    const jsonStr = after.substring(0, endIdx + 1);
-    playerData = JSON.parse(jsonStr);
-  } catch (parseErr) {
-    console.warn('[YT-Arabic-Dub] JSON parse failed for', videoId, ':', parseErr.message);
-    return { hasArabicDub: false, tracksCount: 0 };
-  }
-
-  // Parse audio tracks
-  const tracks = [];
-
-  // Source A: Captions tracklist audioTracks
-  if (playerData.captions?.playerCaptionsTracklistRenderer?.audioTracks) {
-    for (const t of playerData.captions.playerCaptionsTracklistRenderer.audioTracks) {
-      tracks.push({
-        id: t.audioTrackId || t.id || '',
-        displayName: t.displayName || '',
-        isDefault: !!t.hasDefaultTrack
-      });
-    }
-  }
-
-  // Source B: Adaptive streaming formats audio tracks
-  if (playerData.streamingData?.adaptiveFormats) {
-    for (const format of playerData.streamingData.adaptiveFormats) {
-      if (format.audioTrack) {
-        tracks.push({
-          id: format.audioTrack.audioTrackId || format.audioTrack.id || '',
-          displayName: format.audioTrack.displayName || '',
-          isDefault: !!format.audioTrack.audioIsDefault
-        });
-      }
-    }
-  }
-
-  // Deduplicate tracks by id / name
-  const uniqueTracksMap = new Map();
-  for (const t of tracks) {
-    const key = (t.id || t.displayName || '').toLowerCase().trim();
-    if (key && !uniqueTracksMap.has(key)) {
-      uniqueTracksMap.set(key, t);
-    }
-  }
-
-  const uniqueTracks = [...uniqueTracksMap.values()];
-  const tracksCount = uniqueTracks.length;
-
-  // Determine if Arabic audio track exists
-  const hasArabic = uniqueTracks.some(t => {
-    const id = (t.id || '').toLowerCase();
-    const name = (t.displayName || '').toLowerCase();
-    return (
-      id.startsWith('ar.') ||
-      id === 'ar' ||
-      id.includes('.ar.') ||
-      id.endsWith('.ar') ||
-      name.includes('arabic') ||
-      name.includes('العربية') ||
-      name.includes('عربي')
-    );
-  });
-
-  const result = {
+  return {
     hasArabicDub: hasArabic,
-    isDubbed: hasArabic && tracksCount > 1,
-    tracksCount: tracksCount,
+    isDubbed: isDubbed,
+    tracksCount: tracks.length,
     timestamp: Date.now()
   };
-
-  console.log(`[YT-Arabic-Dub] Video ${videoId}: hasArabicDub = ${hasArabic} (${tracksCount} tracks)`);
-  return result;
 }
 
 // ==========================================
@@ -263,7 +224,7 @@ function processQueue() {
     .then(result => {
       memoryCache.set(videoId, result);
       stats.totalScanned++;
-      if (result.hasArabicDub) {
+      if (result.isDubbed) {
         stats.dubbedFound++;
       }
       scheduleSaveCache();
@@ -275,7 +236,7 @@ function processQueue() {
       }
     })
     .catch(err => {
-      const fallback = { hasArabicDub: false, tracksCount: 0, error: err.message };
+      const fallback = { hasArabicDub: false, isDubbed: false, tracksCount: 0, error: err.message };
       memoryCache.set(videoId, fallback);
       const waiting = pendingPromises.get(videoId);
       if (waiting) {
@@ -293,22 +254,19 @@ function processQueue() {
 
 function requestVideoCheck(videoId) {
   if (!videoId || videoId.length !== 11) {
-    return Promise.resolve({ hasArabicDub: false, tracksCount: 0 });
+    return Promise.resolve({ hasArabicDub: false, isDubbed: false, tracksCount: 0 });
   }
 
-  // 1. Instant Memory Cache check (0ms)
   if (memoryCache.has(videoId)) {
     return Promise.resolve({ ...memoryCache.get(videoId), cached: true });
   }
 
-  // 2. Return existing in-flight promise if already queued
   if (pendingPromises.has(videoId)) {
     return new Promise((resolve, reject) => {
       pendingPromises.get(videoId).push({ resolve, reject });
     });
   }
 
-  // 3. Queue new check
   return new Promise((resolve, reject) => {
     pendingPromises.set(videoId, [{ resolve, reject }]);
     taskQueue.push(videoId);
@@ -326,7 +284,7 @@ browserAPI.runtime.onMessage.addListener((message, sender, sendResponse) => {
   switch (message.type) {
     case 'CHECK_VIDEO': {
       requestVideoCheck(message.videoId).then(sendResponse);
-      return true; // Keep channel open for async response
+      return true;
     }
 
     case 'GET_STATS': {

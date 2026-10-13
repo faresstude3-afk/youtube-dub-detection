@@ -17,7 +17,7 @@ yt-thumbnail-view-model {
   position: absolute !important;
   top: 8px !important;
   right: 8px !important;
-  z-index: 4 !important;
+  z-index: 25 !important;
   display: inline-flex !important;
   align-items: center !important;
   gap: 5px !important;
