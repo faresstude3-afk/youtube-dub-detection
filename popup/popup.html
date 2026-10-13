@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>مكتشف الدبلجة العربية</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-wrapper">
+    <!-- Header -->
+    <header class="popup-header">
+      <div class="brand">
+        <div class="brand-logo">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+            <path d="M12 3a9 9 0 0 0-9 9v7c0 1.1.9 2 2 2h4v-8H5v-1a7 7 0 0 1 14 0v1h-4v8h4c1.1 0 2-.9 2-2v-7a9 9 0 0 0-9-9z"/>
+          </svg>
+        </div>
+        <div class="brand-info">
+          <h1 class="brand-title">مكتشف الدبلجة العربية</h1>
+          <span class="brand-sub">تخصيص مظهر العلامة</span>
+        </div>
+      </div>
+      <label class="master-switch" title="تشغيل أو إيقاف الإضافة">
+        <input type="checkbox" id="masterToggle" checked>
+        <span class="switch-slider">
+          <span class="switch-status-text" id="switchStatusText">مفعّل</span>
+          <span class="switch-knob"></span>
+        </span>
+      </label>
+    </header>
+
+    <!-- Live Interactive Thumbnail Preview -->
+    <div class="preview-card" id="previewCard">
+      <div class="preview-bg-pattern"></div>
+      <div id="disabledNotice" class="disabled-notice">الإضافة معطلة حالياً</div>
+      <div id="liveBadgePreview" class="preview-badge" data-theme="indigo">
+        <span class="preview-icon-wrap">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 3a9 9 0 0 0-9 9v7c0 1.1.9 2 2 2h4v-8H5v-1a7 7 0 0 1 14 0v1h-4v8h4c1.1 0 2-.9 2-2v-7a9 9 0 0 0-9-9z"/>
+          </svg>
+        </span>
+        <span id="previewBadgeText" class="preview-text">دبلجة عربية</span>
+      </div>
+      <span class="preview-duration">14:20</span>
+      <span class="preview-caption">معاينة حية لشكل العلامة على الفيديو</span>
+    </div>
+
+    <!-- Customization Controls -->
+    <div class="controls-group" id="controlsGroup">
+      <!-- 1. Color Theme -->
+      <div class="control-block">
+        <span class="control-label">لون العلامة المتناسق</span>
+        <div class="theme-grid" id="themeSelector">
+          <button type="button" class="theme-btn active" data-value="indigo" title="نيلي سماوي">
+            <span class="swatch swatch-indigo"></span>
+            <span>نيلي</span>
+          </button>
+          <button type="button" class="theme-btn" data-value="emerald" title="أخضر زمردي">
+            <span class="swatch swatch-emerald"></span>
+            <span>زمردي</span>
+          </button>
+          <button type="button" class="theme-btn" data-value="rose" title="أحمر ياقوتي">
+            <span class="swatch swatch-rose"></span>
+            <span>ياقوتي</span>
+          </button>
+          <button type="button" class="theme-btn" data-value="amber" title="ذهبي دافئ">
+            <span class="swatch swatch-amber"></span>
+            <span>ذهبي</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 2. Badge Text -->
+      <div class="control-block">
+        <span class="control-label">النص المعروض</span>
+        <div class="pills-grid" id="textSelector">
+          <button type="button" class="pill-btn active" data-value="دبلجة عربية">دبلجة عربية</button>
+          <button type="button" class="pill-btn" data-value="عربي">عربي</button>
+          <button type="button" class="pill-btn" data-value="صوت عربي">صوت عربي</button>
+          <button type="button" class="pill-btn" data-value="AR Dub">AR Dub</button>
+        </div>
+      </div>
+
+      <!-- 3. Badge Position -->
+      <div class="control-block">
+        <span class="control-label">مكان الظهور على الفيديو</span>
+        <div class="segmented-control" id="positionSelector">
+          <button type="button" class="seg-btn active" data-value="right">أعلى اليمين</button>
+          <button type="button" class="seg-btn" data-value="left">أعلى اليسار</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

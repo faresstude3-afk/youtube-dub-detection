@@ -1,0 +1,48 @@
+{
+  "manifest_version": 2,
+  "name": "مكتشف الدبلجة العربية في يوتيوب | YouTube Arabic Dub Indicator",
+  "description": "يعرض شارة أنيقة وخفيفة على الفيديوهات الأجنبية التي تدعم الدبلجة والمسار الصوتي العربي أثناء تصفح يوتيوب.",
+  "version": "1.8.0",
+  "author": "Antigravity",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "yt-arabic-dub-indicator@antigravity.firefox",
+      "strict_min_version": "109.0"
+    }
+  },
+  "permissions": [
+    "storage",
+    "*://*.youtube.com/*"
+  ],
+  "background": {
+    "scripts": ["background/background.js"]
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.youtube.com/*"
+      ],
+      "js": [
+        "content/content.js"
+      ],
+      "css": [
+        "content/styles.css"
+      ],
+      "run_at": "document_idle"
+    }
+  ],
+  "browser_action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "مكتشف الدبلجة العربية",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}

@@ -1,0 +1,140 @@
+/* ==========================================================================
+   YouTube Arabic Dub Indicator - Ultra-Harmonious Modern Badge (v1.6.0)
+   ========================================================================== */
+
+yt-thumbnail-view-model {
+  position: relative !important;
+  display: block !important;
+}
+
+/* Base Badge Capsule */
+.yt-ar-dub-badge {
+  --yt-dub-accent-1: #38BDF8;
+  --yt-dub-accent-2: #818CF8;
+  --yt-dub-glow: rgba(56, 189, 248, 0.35);
+  --yt-dub-border: rgba(129, 140, 248, 0.45);
+
+  position: absolute !important;
+  top: 8px !important;
+  right: 8px !important;
+  z-index: 4 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  padding: 4px 10px 4px 8px !important;
+  border-radius: 999px !important;
+
+  /* Harmonious Dark Frosted Glass */
+  background: linear-gradient(135deg, rgba(15, 18, 28, 0.86) 0%, rgba(9, 11, 17, 0.94) 100%) !important;
+  backdrop-filter: blur(14px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(190%) !important;
+  border: 1px solid var(--yt-dub-border) !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55), 0 0 12px var(--yt-dub-glow), inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
+
+  color: #F8FAFC !important;
+  font-family: system-ui, -apple-system, 'Segoe UI', Tahoma, 'Noto Sans Arabic', sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  line-height: 1 !important;
+  letter-spacing: 0.2px !important;
+  direction: rtl !important;
+  user-select: none !important;
+  pointer-events: none !important;
+
+  animation: ytArBadgeReveal 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+  will-change: transform, opacity !important;
+}
+
+/* Left Alignment */
+.yt-ar-dub-badge.yt-ar-left {
+  right: auto !important;
+  left: 8px !important;
+}
+
+/* Color Themes */
+.yt-ar-dub-badge[data-theme="indigo"] {
+  --yt-dub-accent-1: #38BDF8;
+  --yt-dub-accent-2: #818CF8;
+  --yt-dub-glow: rgba(99, 102, 241, 0.35);
+  --yt-dub-border: rgba(129, 140, 248, 0.48);
+}
+
+.yt-ar-dub-badge[data-theme="emerald"] {
+  --yt-dub-accent-1: #34D399;
+  --yt-dub-accent-2: #10B981;
+  --yt-dub-glow: rgba(16, 185, 129, 0.32);
+  --yt-dub-border: rgba(52, 211, 153, 0.45);
+}
+
+.yt-ar-dub-badge[data-theme="rose"] {
+  --yt-dub-accent-1: #FB7185;
+  --yt-dub-accent-2: #E11D48;
+  --yt-dub-glow: rgba(225, 29, 72, 0.35);
+  --yt-dub-border: rgba(251, 113, 133, 0.45);
+}
+
+.yt-ar-dub-badge[data-theme="amber"] {
+  --yt-dub-accent-1: #FBBF24;
+  --yt-dub-accent-2: #F59E0B;
+  --yt-dub-glow: rgba(245, 158, 11, 0.32);
+  --yt-dub-border: rgba(251, 191, 36, 0.45);
+}
+
+/* Modern Icon Container */
+.yt-ar-dub-icon-wrap {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  width: 15px !important;
+  height: 15px !important;
+  border-radius: 50% !important;
+  background: linear-gradient(135deg, var(--yt-dub-accent-1), var(--yt-dub-accent-2)) !important;
+  box-shadow: 0 0 8px var(--yt-dub-glow) !important;
+  flex-shrink: 0 !important;
+}
+
+.yt-ar-dub-icon-wrap svg {
+  width: 10px !important;
+  height: 10px !important;
+  fill: #090A0F !important;
+  display: block !important;
+}
+
+/* Text Label */
+.yt-ar-dub-text {
+  color: #F8FAFC !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6) !important;
+  padding-top: 0.5px !important;
+}
+
+/* Compact Sidebar Layout */
+ytd-compact-video-renderer .yt-ar-dub-badge {
+  top: 5px !important;
+  right: 5px !important;
+  padding: 3px 8px 3px 6px !important;
+  font-size: 10px !important;
+  gap: 4px !important;
+}
+
+ytd-compact-video-renderer .yt-ar-dub-icon-wrap {
+  width: 13px !important;
+  height: 13px !important;
+}
+
+ytd-compact-video-renderer .yt-ar-dub-icon-wrap svg {
+  width: 8.5px !important;
+  height: 8.5px !important;
+}
+
+@keyframes ytArBadgeReveal {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.92);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
